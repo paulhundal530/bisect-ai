@@ -106,7 +106,27 @@ class ClaudeAnalysisProvider internal constructor(
     }
 
     private fun rootMessage(e: Throwable): String =
-        e.message ?: e.cause?.message ?: e.javaClass.simpleName
+        cleanApiError(e.message ?: e.cause?.message ?: e.javaClass.simpleName)
+
+    /**
+     * The SDK reports API failures as a dumped error object, e.g.
+     * `400: AnthropicError{additionalProperties={... message=Your credit balance is too low ...}}`.
+     * Extract the human-readable message (and HTTP status when present) so users see an actionable
+     * line rather than the raw object (§40).
+     */
+    internal fun cleanApiError(raw: String): String {
+        val trimmed = raw.trim()
+        val status = Regex("^(\\d{3})\\b").find(trimmed)?.groupValues?.get(1)
+        val messageIdx = trimmed.lastIndexOf("message=")
+        val inner = if (messageIdx >= 0) {
+            val after = trimmed.substring(messageIdx + "message=".length)
+            val end = after.indexOf('}').takeIf { it >= 0 } ?: after.length
+            after.substring(0, end).trim().trimEnd(',')
+        } else {
+            trimmed
+        }
+        return if (status != null) "HTTP $status: $inner" else inner
+    }
 
     override fun close() {
         runCatching { client?.close() }

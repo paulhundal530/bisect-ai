@@ -44,4 +44,27 @@ class ProviderTest {
         assertTrue(result.failureReason!!.contains("ANTHROPIC_API_KEY"))
         provider.close()
     }
+
+    @Test
+    fun `api error dumps are reduced to an actionable message`() {
+        val provider = ClaudeAnalysisProvider(
+            model = "m", maxTokens = 100, analysisTimeout = java.time.Duration.ofSeconds(5),
+        ) { throw IllegalStateException("stub") }
+        val credit = "400: AnthropicError{additionalProperties={type=error, " +
+            "error={type=invalid_request_error, message=Your credit balance is too low to access " +
+            "the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.}, " +
+            "request_id=req_x}}"
+        assertEquals(
+            "HTTP 400: Your credit balance is too low to access the Anthropic API. " +
+                "Please go to Plans & Billing to upgrade or purchase credits.",
+            provider.cleanApiError(credit),
+        )
+        assertEquals(
+            "HTTP 401: x-api-key header is required",
+            provider.cleanApiError("401: AnthropicError{error={message=x-api-key header is required}}"),
+        )
+        // Non-API errors pass through unchanged.
+        assertEquals("Connection reset", provider.cleanApiError("Connection reset"))
+        provider.close()
+    }
 }
