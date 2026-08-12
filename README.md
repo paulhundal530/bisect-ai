@@ -25,8 +25,30 @@ and then asks Claude to explain *why* that commit likely caused the regression.
 
 ```bash
 ./gradlew build            # compile + unit tests + deterministic integration test
-./gradlew :cli:shadowJar   # produce the runnable fat JAR
+./gradlew :cli:executable  # produce a single self-executing ./bisect-ai launcher
+./gradlew :cli:shadowJar   # (or) just the runnable fat JAR
 ```
+
+### Run as `./bisect-ai` (recommended)
+
+`:cli:executable` produces a single self-contained file at `cli/build/bisect-ai` — a shell
+launcher with the fat JAR appended — that you run directly, no `java -jar` needed:
+
+```bash
+./cli/build/bisect-ai --help
+```
+
+Install it on your `PATH` so you can run `bisect-ai` from anywhere:
+
+```bash
+install -m 0755 cli/build/bisect-ai /usr/local/bin/bisect-ai
+bisect-ai --version
+```
+
+It still uses your installed JVM (honoring `JAVA_HOME` if set, otherwise `java` on `PATH`), but
+you never type `java -jar` yourself.
+
+### Or run the plain fat JAR
 
 The fat JAR lands at `cli/build/libs/bisectai-<version>.jar`:
 
@@ -40,7 +62,7 @@ java -jar cli/build/libs/bisectai-0.1.0.jar --help
 
 ```bash
 cd ~/projects/my-app
-java -jar bisectai.jar init calculator-regression
+bisect-ai init calculator-regression
 # Created:
 #
 # .bisectai/investigations/calculator-regression.md
@@ -74,7 +96,7 @@ Describe the expected vs. observed behavior here.
 ### 2. Run the investigation
 
 ```bash
-java -jar bisectai.jar run \
+bisect-ai run \
   --investigation calculator-regression \
   --good <known-good-sha> \
   --bad  <known-bad-sha> \
@@ -93,7 +115,7 @@ java -jar bisectai.jar run \
 Progress is written to **stderr**, so JSON on stdout stays clean:
 
 ```bash
-java -jar bisectai.jar run ... --output-type json | jq .
+bisect-ai run ... --output-type json | jq .
 ```
 
 BisectAI evaluates every candidate commit in an **isolated Git worktree** created in a temporary
