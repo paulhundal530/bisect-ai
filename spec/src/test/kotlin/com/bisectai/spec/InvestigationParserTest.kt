@@ -156,6 +156,13 @@ class InvestigationParserTest {
     }
 
     @Test
+    fun `generated manual template parses into manual classification`() {
+        val def = parser.parse(InvestigationTemplate.renderManual("Manual Investigation"))
+        assertEquals("Manual Investigation", def.name)
+        assertTrue(def.classification is com.bisectai.core.ClassificationSpec.Manual)
+    }
+
+    @Test
     fun `manual classification parses with an optional setup command and instructions`() {
         val def = parser.parse(
             """

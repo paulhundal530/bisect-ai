@@ -125,8 +125,13 @@ Git state is cleaned up on success and failure alike.
 ## Manual mode (regressions you verify by using the app)
 
 Some regressions can only be judged by a person driving the app — a UI journey with no
-`./gradlew test` to run (e.g. "open the calculator and check multiplication"). Set the
-classification type to `manual`:
+`./gradlew test` to run (e.g. "open the calculator and check multiplication"). Scaffold one with:
+
+```bash
+bisect-ai init multiply-flow --manual   # writes a manual template; then edit command + instructions
+```
+
+which generates an investigation with the classification type set to `manual`:
 
 ```yaml
 ---

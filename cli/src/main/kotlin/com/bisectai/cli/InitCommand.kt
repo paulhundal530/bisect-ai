@@ -23,6 +23,12 @@ class InitCommand : Callable<Int> {
     @Option(names = ["--repo"], description = ["Repository directory (default: current directory)."])
     var repo: File = File(System.getProperty("user.dir"))
 
+    @Option(
+        names = ["--manual"],
+        description = ["Scaffold a manual (human-verified) investigation instead of exit-code."],
+    )
+    var manual: Boolean = false
+
     override fun call(): Int {
         val git = GitClient(DefaultProcessRunner())
         if (!git.isGitRepository(repo)) {
@@ -47,7 +53,12 @@ class InitCommand : Callable<Int> {
             return ExitCode.GENERAL_FAILURE.code
         }
 
-        target.writeText(InvestigationTemplate.render(name))
+        val template = if (manual) {
+            InvestigationTemplate.renderManual(name)
+        } else {
+            InvestigationTemplate.render(name)
+        }
+        target.writeText(template)
         println("Created:\n\n${target.relativeToRepo(repo)}")
         return ExitCode.COMPLETED.code
     }
