@@ -12,7 +12,7 @@ import java.util.concurrent.Callable
         "Git and deterministic validation locate WHERE a regression was introduced;",
         "Claude explains WHY the identified commit likely caused it.",
     ],
-    subcommands = [InitCommand::class, RunCommand::class],
+    subcommands = [InitCommand::class, RunCommand::class, FixCommand::class],
 )
 class RootCommand : Callable<Int> {
     /** With no subcommand, print usage and signal invalid arguments. */

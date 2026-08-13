@@ -167,6 +167,33 @@ Optional note (what did you observe?): 7x6 showed 43
 For flows that *can* be scripted, keep `type: exit-code` and make the command a UI-automation run
 (Maestro/Espresso/Appium) that exits non-zero on failure — no manual mode needed.
 
+## Fixing the regression (`bisectai fix`)
+
+Once `run` has produced a JSON result, `fix` can propose and **verify** a repair, then commit it
+on a new branch:
+
+```bash
+bisectai fix \
+  --result ./multiply-flow-result.json \
+  --investigation multiply-flow \
+  --output-type report
+```
+
+How it works:
+- **AI proposes, the validation decides.** Claude edits only the files the bisect implicated, and
+  the fix is accepted only if the investigation's own validation command now classifies the patched
+  code GOOD (for `manual` investigations, it builds/installs the fix and **prompts you** to confirm).
+- **Automatic revert fallback.** If the AI can't produce a verified fix within `--max-attempts`, it
+  falls back to a deterministic `git revert` of the culprit and verifies that instead.
+- **Safe by construction.** All work happens in an isolated worktree; your working tree, branch, and
+  index are untouched. A verified fix is committed on a **new branch** (`bisectai/fix-...`) — never
+  pushed, never merged, never amending existing history.
+
+Useful flags: `--strategy revert` (skip AI, just revert), `--dry-run` (show the verified diff, commit
+nothing), `--yes` (skip the confirmation prompt), `--branch <name>`, `--output`/`--output-type`.
+
+Exit code is `0` only when a verified fix was committed.
+
 ## Claude authentication
 
 BisectAI uses Anthropic's official Java SDK with standard environment-based authentication.

@@ -121,6 +121,46 @@ class GitClient(
         if (result.exitCode != 0) throw gitError("Failed to check out $ref.", result)
     }
 
+    /** Creates and switches to a new branch, carrying any working-tree changes. */
+    fun createBranch(dir: File, name: String) {
+        val result = run(dir, "checkout", "-b", name)
+        if (result.exitCode != 0) throw gitError("Failed to create branch $name.", result)
+    }
+
+    /** Stages everything and commits; returns false if there was nothing to commit. */
+    fun commitAll(dir: File, message: String): Boolean {
+        run(dir, "add", "-A")
+        val result = run(dir, "commit", "-m", message)
+        return result.exitCode == 0
+    }
+
+    /** Reverse-applies [sha] without committing. Non-zero exit signals a conflict. */
+    fun revertNoCommit(dir: File, sha: String): ExecutionResult =
+        run(dir, "revert", "--no-commit", "--no-edit", sha)
+
+    /** Discards all changes in the worktree and aborts any in-progress revert. */
+    fun resetWorktree(dir: File) {
+        runCatching { run(dir, "revert", "--quit") }
+        runCatching { run(dir, "reset", "--hard", "HEAD") }
+        runCatching { run(dir, "clean", "-fd") }
+    }
+
+    /** Working-tree diff against HEAD (staged + unstaged), for showing a proposed fix. */
+    fun diffAgainstHead(dir: File): String {
+        val result = run(dir, "diff", "HEAD")
+        return if (result.exitCode == 0) result.stdout else ""
+    }
+
+    /** Names of files changed in the worktree relative to HEAD. */
+    fun changedAgainstHead(dir: File): List<String> {
+        val result = run(dir, "diff", "--name-only", "HEAD")
+        return if (result.exitCode == 0) {
+            result.stdout.lines().map { it.trim() }.filter { it.isNotBlank() }
+        } else {
+            emptyList()
+        }
+    }
+
     /** Runs a raw git subcommand; also used by [Bisector]. */
     internal fun run(dir: File, vararg args: String): ExecutionResult {
         val command = buildString {
