@@ -3,6 +3,7 @@ package com.bisectai.cli
 import com.bisectai.core.AnalysisProvider
 import com.bisectai.core.AnalysisStatus
 import com.bisectai.core.BisectAiException
+import com.bisectai.core.ClassificationSpec
 import com.bisectai.core.CommitEvaluation
 import com.bisectai.core.CulpritCommit
 import com.bisectai.core.EvaluationStatus
@@ -102,7 +103,8 @@ class InvestigationRunner(
             loop@ while (iteration++ < MAX_BISECT_STEPS) {
                 when (val current = step) {
                     is BisectStep.Evaluate -> {
-                        val eval = evaluator.evaluate(current.commit, worktree, definition)
+                        // Git has already checked out the candidate in the worktree.
+                        val eval = evaluateCommit(current.commit, worktree, definition, checkout = false)
                         evaluations += eval
                         progress.commitResult(
                             current.commit, eval.status, eval.duration,
@@ -256,17 +258,44 @@ class InvestigationRunner(
                 "Investigation file not found: ${config.investigationFile}",
             )
         }
-        return parser.parse(config.investigationFile.readText())
+        val definition = parser.parse(config.investigationFile.readText())
+        // Manual classification needs an interactive terminal; fail fast before any worktree work.
+        if (definition.classification is ClassificationSpec.Manual && !evaluator.canClassifyManually()) {
+            throw BisectAiException(
+                ExitCode.INVALID_ARGUMENTS,
+                "This investigation uses manual classification, which requires an interactive " +
+                    "terminal (a TTY). None is available (input is piped, or this is a CI/cron run).",
+            )
+        }
+        return definition
+    }
+
+    /** Verdicts already collected in manual mode, so parent/culprit aren't re-prompted. */
+    private val manualVerdicts = HashMap<String, CommitEvaluation>()
+
+    /**
+     * Evaluates [sha], optionally checking it out first. In manual mode a previously collected
+     * verdict for the same commit is reused rather than re-prompting the tester.
+     */
+    private fun evaluateCommit(
+        sha: String,
+        worktree: File,
+        definition: InvestigationDefinition,
+        checkout: Boolean,
+    ): CommitEvaluation {
+        val manual = definition.classification is ClassificationSpec.Manual
+        if (manual) manualVerdicts[sha]?.let { return it }
+        if (checkout) git.checkoutDetached(worktree, sha)
+        val eval = evaluator.evaluate(sha, worktree, definition)
+        if (manual) manualVerdicts[sha] = eval
+        return eval
     }
 
     private fun evaluateCheckedOut(
         sha: String,
         worktree: File,
         definition: InvestigationDefinition,
-    ): CommitEvaluation {
-        git.checkoutDetached(worktree, sha)
-        return evaluator.evaluate(sha, worktree, definition)
-    }
+    ): CommitEvaluation = evaluateCommit(sha, worktree, definition, checkout = true)
 
     private fun verifyBoundary(
         eval: CommitEvaluation,

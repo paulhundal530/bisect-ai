@@ -27,6 +27,7 @@ internal data class ValidationYaml(
 internal data class ClassificationYaml(
     val type: String? = null,
     val goodExitCodes: List<Int>? = null,
+    val instructions: String? = null,
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)

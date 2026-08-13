@@ -42,8 +42,14 @@ class InvestigationParser {
         val name = yaml.name?.takeIf { it.isNotBlank() }
             ?: throw invalid("Missing required field: name.")
 
-        val validation = parseValidation(yaml.validation)
+        // Classification is parsed first because it decides whether a validation command is
+        // required: exit-code classification needs one; manual classification treats it as an
+        // optional setup step.
         val classification = parseClassification(yaml.classification)
+        val validation = parseValidation(
+            yaml.validation,
+            commandRequired = classification !is ClassificationSpec.Manual,
+        )
         val failurePolicy = parseFailurePolicy(yaml.failure)
 
         return InvestigationDefinition(
@@ -56,10 +62,17 @@ class InvestigationParser {
         )
     }
 
-    private fun parseValidation(v: ValidationYaml?): ValidationSpec {
-        if (v == null) throw invalid("Missing required section: validation.")
-        val command = v.command?.takeIf { it.isNotBlank() }
-            ?: throw invalid("Missing required field: validation.command.")
+    private fun parseValidation(v: ValidationYaml?, commandRequired: Boolean): ValidationSpec {
+        // Manual classification may omit the validation section entirely (no setup step).
+        if (v == null) {
+            if (commandRequired) throw invalid("Missing required section: validation.")
+            return ValidationSpec(command = "")
+        }
+        val command = when {
+            !v.command.isNullOrBlank() -> v.command
+            commandRequired -> throw invalid("Missing required field: validation.command.")
+            else -> "" // manual mode: no setup command
+        }
         val attempts = v.attempts ?: 1
         val warmupAttempts = v.warmupAttempts ?: 0
         val timeoutSeconds = v.timeoutSeconds ?: 300
@@ -82,9 +95,10 @@ class InvestigationParser {
                 val good = c.goodExitCodes?.takeIf { it.isNotEmpty() } ?: listOf(0)
                 ClassificationSpec.ExitCode(good)
             }
+            "manual" -> ClassificationSpec.Manual(c.instructions?.trim()?.ifBlank { null })
             null -> throw invalid("Missing required field: classification.type.")
             else -> throw invalid(
-                "Unsupported classification type: \"$type\". V1 supports: exit-code.",
+                "Unsupported classification type: \"$type\". V1 supports: exit-code, manual.",
             )
         }
     }

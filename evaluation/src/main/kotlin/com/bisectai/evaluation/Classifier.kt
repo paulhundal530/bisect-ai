@@ -17,5 +17,7 @@ object Classifier {
                 if (result.exitCode in spec.goodExitCodes) EvaluationStatus.GOOD
                 else EvaluationStatus.BAD
             }
+            is ClassificationSpec.Manual ->
+                error("Manual classification is decided by a human, not an exit code.")
         }
 }

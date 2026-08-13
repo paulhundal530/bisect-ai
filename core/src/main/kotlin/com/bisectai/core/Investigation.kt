@@ -36,6 +36,16 @@ sealed interface ClassificationSpec {
      * Exit code 0 (or any code in [goodExitCodes]) -> GOOD; any other exit code -> BAD.
      */
     data class ExitCode(val goodExitCodes: List<Int>) : ClassificationSpec
+
+    /**
+     * A human classifies each candidate after using the app (e.g. a UI journey that cannot be
+     * scripted). The validation `command` is repurposed as an optional *setup* step (build,
+     * install, launch); the exit code no longer classifies. A person does — preserving the rule
+     * that AI never classifies (Invariant 2). Requires an interactive terminal.
+     *
+     * @param instructions shown to the tester before each verdict prompt (what journey to run).
+     */
+    data class Manual(val instructions: String? = null) : ClassificationSpec
 }
 
 /** What to do when BisectAI cannot execute validation (timeout, launch failure). */

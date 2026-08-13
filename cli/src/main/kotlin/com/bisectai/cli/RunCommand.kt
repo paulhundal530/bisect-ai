@@ -68,7 +68,7 @@ class RunCommand : Callable<Int> {
         return try {
             val runner = InvestigationRunner(
                 git = GitClient(DefaultProcessRunner()),
-                evaluator = CommitEvaluator(DefaultProcessRunner()),
+                evaluator = CommitEvaluator(DefaultProcessRunner(), TtyVerdictReader()),
                 parser = InvestigationParser(),
                 analysisProvider = analysisProvider,
                 progress = progress,

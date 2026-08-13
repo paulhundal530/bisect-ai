@@ -154,4 +154,60 @@ class InvestigationParserTest {
         assertEquals("My Investigation", def.name)
         assertEquals("./gradlew test", def.validation.command)
     }
+
+    @Test
+    fun `manual classification parses with an optional setup command and instructions`() {
+        val def = parser.parse(
+            """
+            ---
+            version: 1
+            name: "Manual UI check"
+            validation:
+              command: "./gradlew :app:installDebug"
+              timeoutSeconds: 900
+            classification:
+              type: "manual"
+              instructions: "Open the calculator and multiply 7 x 6; expect 42."
+            ---
+            body
+            """.trimIndent(),
+        )
+        val manual = def.classification as com.bisectai.core.ClassificationSpec.Manual
+        assertEquals("Open the calculator and multiply 7 x 6; expect 42.", manual.instructions)
+        assertEquals("./gradlew :app:installDebug", def.validation.command)
+    }
+
+    @Test
+    fun `manual classification allows omitting the validation command`() {
+        val def = parser.parse(
+            """
+            ---
+            version: 1
+            name: "Manual only"
+            classification:
+              type: "manual"
+            ---
+            body
+            """.trimIndent(),
+        )
+        assertTrue(def.classification is com.bisectai.core.ClassificationSpec.Manual)
+        assertEquals("", def.validation.command)
+    }
+
+    @Test
+    fun `exit-code classification still requires a command`() {
+        val ex = assertThrows(BisectAiException::class.java) {
+            parser.parse(
+                """
+                ---
+                version: 1
+                name: "x"
+                classification:
+                  type: "exit-code"
+                ---
+                """.trimIndent(),
+            )
+        }
+        assertTrue(ex.message!!.contains("validation"), ex.message)
+    }
 }

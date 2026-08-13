@@ -122,6 +122,46 @@ BisectAI evaluates every candidate commit in an **isolated Git worktree** create
 directory. Your working tree, branch, index, and checkout are never touched, and all temporary
 Git state is cleaned up on success and failure alike.
 
+## Manual mode (regressions you verify by using the app)
+
+Some regressions can only be judged by a person driving the app — a UI journey with no
+`./gradlew test` to run (e.g. "open the calculator and check multiplication"). Set the
+classification type to `manual`:
+
+```yaml
+---
+version: 1
+name: "multiply-flow"
+validation:
+  command: "./gradlew :app:installDebug"   # OPTIONAL setup: build/install/launch the candidate
+  timeoutSeconds: 900
+classification:
+  type: "manual"
+  instructions: "Open the calculator, multiply 7 x 6, expect 42."
+---
+# Regression Description
+Multiplication started returning the wrong result.
+```
+
+For each candidate commit BisectAI checks it out in the isolated worktree, runs the optional
+setup command, then prompts you on the terminal:
+
+```
+Open the calculator, multiply 7 x 6, expect 42.
+Commit under test: 8a71fe2...
+Verdict — [g]ood / [b]ad / [s]kip / [a]bort: b
+Optional note (what did you observe?): 7x6 showed 43
+```
+
+- Your verdict maps to `git bisect good/bad/skip`; **`abort`** stops cleanly (state is still cleaned up).
+- In `manual` mode the `command` is a **setup** step, not the classifier — a *human* classifies, so AI still never does (Invariant 2). If setup fails, `failure.onExecutionFailure` applies.
+- The optional **note** you type is fed to Claude as evidence, so the AI root-cause analysis is grounded in what you actually saw.
+- `attempts`/`warmupAttempts` don't apply. Manual mode requires an interactive terminal (a TTY);
+  in CI/piped runs it fails fast rather than hanging.
+
+For flows that *can* be scripted, keep `type: exit-code` and make the command a UI-automation run
+(Maestro/Espresso/Appium) that exits non-zero on failure — no manual mode needed.
+
 ## Claude authentication
 
 BisectAI uses Anthropic's official Java SDK with standard environment-based authentication.
