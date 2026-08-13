@@ -10,18 +10,40 @@ and then asks Claude to explain *why* that commit likely caused the regression.
 > **Architectural rule:** Git and deterministic validation decide **where** the regression was
 > introduced. AI only explains **why**. AI never chooses GOOD/BAD or the culprit.
 
-## Requirements
+## Install
 
-- **JDK 21** (LTS). The build uses Gradle toolchains and will auto-provision Temurin 21 for
-  compilation, but the Gradle daemon itself must run on a JDK it supports. If you have a newer
-  non-LTS JDK on your `PATH` (e.g. Java 24/25/26), run Gradle with JDK 21, for example:
-  ```bash
-  JAVA_HOME=/path/to/jdk-21 ./gradlew build
-  ```
-  CI provisions JDK 21 directly, so this only matters for local builds.
-- `git` on your `PATH` (2.30+; per-worktree bisect state recommended).
+### Homebrew (recommended)
+
+```bash
+brew install paulhundal530/bisectai/bisect-ai
+bisect-ai --version
+```
+
+The formula installs a `bisect-ai` launcher on your `PATH` and brings its own Java
+(`openjdk@21`), so you don't need to manage a JDK yourself. `git` (2.30+) must be on your `PATH`.
+
+To update later: `brew upgrade bisect-ai`.
+
+### From source
+
+See [Build](#build) below. Building requires **JDK 21** and produces the same `bisect-ai`
+launcher (and a runnable fat JAR).
 
 ## Build
+
+> Only needed if you're building from source or contributing. Homebrew users can skip this.
+
+Building requires **JDK 21** (LTS). The build uses Gradle toolchains and will auto-provision
+Temurin 21 for compilation, but the Gradle daemon itself must run on a JDK it supports. If you
+have a newer non-LTS JDK on your `PATH` (e.g. Java 24/25/26), run Gradle with JDK 21:
+
+```bash
+JAVA_HOME=/path/to/jdk-21 ./gradlew build
+```
+
+CI provisions JDK 21 directly, so this only matters for local builds.
+
+
 
 ```bash
 ./gradlew build            # compile + unit tests + deterministic integration test
@@ -29,7 +51,7 @@ and then asks Claude to explain *why* that commit likely caused the regression.
 ./gradlew :cli:shadowJar   # (or) just the runnable fat JAR
 ```
 
-### Run as `./bisect-ai` (recommended)
+### Run as `./bisect-ai` (from a source build)
 
 `:cli:executable` produces a single self-contained file at `cli/build/bisect-ai` — a shell
 launcher with the fat JAR appended — that you run directly, no `java -jar` needed:
